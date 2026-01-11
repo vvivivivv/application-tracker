@@ -1,47 +1,44 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { addDays, isBefore, isAfter, parseISO, startOfWeek, format } from 'date-fns';
 
 export function useApplications(session) {
   const [jobs, setJobs] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchJobs = async () => {
+  const fetchData = async () => {
     if (!session?.user?.id) return;
-    const { data } = await supabase
-      .from('applications')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false });
-    setJobs(data || []);
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      const { data: jobList, error: jobError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (jobError) throw jobError;
+
+      const { data: statsData, error: statsError } = await supabase.rpc('get_application_stats');
+      if (statsError) throw statsError;
+
+      const { data: remindersData, error: remError } = await supabase.rpc('get_application_reminders');
+      if (remError) throw remError;
+
+      setJobs(jobList || []);
+      setStats(statsData);
+      setReminders(remindersData || []);
+    } catch (err) {
+      console.error("Error fetching application data:", err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchJobs(); }, [session]);
+  useEffect(() => {
+    fetchData();
+  }, [session]);
 
-  const stats = useMemo(() => {
-    const interviewCount = jobs.filter(j => ['Interview', 'Offer'].includes(j.status)).length;
-    const rate = jobs.length > 0 ? ((interviewCount / jobs.length) * 100).toFixed(1) : 0;
-    const weeklyData = {};
-    jobs.forEach(j => {
-      const week = format(startOfWeek(parseISO(j.date_applied)), 'MMM dd');
-      weeklyData[week] = (weeklyData[week] || 0) + 1;
-    });
-    return { total: jobs.length, rate, weeklyData };
-  }, [jobs]);
-
-  const reminders = useMemo(() => {
-    const today = new Date();
-    const nextWeek = addDays(today, 7);
-    return jobs.filter(j => j.closing_date).map(j => {
-      const rDate = parseISO(j.closing_date);
-      return {
-        ...j,
-        isOverdue: isBefore(rDate, today) && j.status !== 'Rejected',
-        isUpcoming: isAfter(rDate, today) && isBefore(rDate, nextWeek)
-      };
-    }).filter(j => j.isOverdue || j.isUpcoming);
-  }, [jobs]);
-
-  return { jobs, fetchJobs, stats, reminders, loading };
+  return { jobs, fetchJobs: fetchData, stats, reminders, loading };
 }
