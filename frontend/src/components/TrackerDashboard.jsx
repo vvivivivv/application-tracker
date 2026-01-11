@@ -63,7 +63,7 @@ export default function TrackerDashboard({ session }) {
                 <span className="text-lg">{r.isOverdue ? '⚠️' : '🔔'}</span>
                 <div>
                   <p className="text-xs font-black uppercase leading-none mb-1">{r.isOverdue ? 'Overdue' : 'Upcoming Follow-up'}</p>
-                  <p className="text-sm font-bold opacity-80">{r.job_title} @ {r.company} (Due: {r.reminder_date})</p>
+                  <p className="text-sm font-bold opacity-80">{r.job_title} @ {r.company} (Due: {r.closing_date})</p>
                 </div>
               </div>
             ))}
