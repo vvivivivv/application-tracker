@@ -33,8 +33,8 @@ export function useApplications(session) {
   const reminders = useMemo(() => {
     const today = new Date();
     const nextWeek = addDays(today, 7);
-    return jobs.filter(j => j.reminder_date).map(j => {
-      const rDate = parseISO(j.reminder_date);
+    return jobs.filter(j => j.closing_date).map(j => {
+      const rDate = parseISO(j.closing_date);
       return {
         ...j,
         isOverdue: isBefore(rDate, today) && j.status !== 'Rejected',
